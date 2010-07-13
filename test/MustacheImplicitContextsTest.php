@@ -16,7 +16,7 @@ class MustacheImplicitContextsTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals("foo\nbar\nbaz", $m1->render('{{variable}}', $data));
 		
 		$m2 = new Mustache('<{{variable}}>', $data);
-		$this->assertEquals("<foo>\n<bar>\n<baz>", $m1->render());
+		$this->assertEquals("<foo>\n<bar>\n<baz>", $m2->render());
 	}
 
 }

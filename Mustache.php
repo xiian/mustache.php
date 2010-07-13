@@ -80,9 +80,12 @@ class Mustache {
 		} else if (empty($this->context)) {
 			$this->context = array($this);
 		} else {
-//			if (isset($this->context[0]) && is_array($this->context[0]) && $this->varIsIterable($this->context[0])) {
-//				return $this->_renderIterable($template, $this->context[0]);
-//			}
+			if ($keys = array_keys($this->context)) {
+				$last = array_pop($keys);
+				if ($this->varIsIterable($this->context[$last])) {
+					return $this->_renderIterable($template, $this->context[$last]);
+				}
+			}
 		}
 
 		return $this->_render($template, $this->context);
