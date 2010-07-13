@@ -176,6 +176,14 @@ class Mustache {
 		return $this->_renderTemplate($template);
 	}
 
+	/**
+	 * Render implicit contexts.
+	 *
+	 * @access public
+	 * @param string $template
+	 * @param array $contexts
+	 * @return string Rendered Mustache contexts
+	 */
 	public function _renderIterable($template, $contexts) {
 		$ret = array();
 		foreach ($contexts as $context) {
