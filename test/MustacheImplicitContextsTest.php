@@ -19,4 +19,14 @@ class MustacheImplicitContextsTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals("<foo>\n<bar>\n<baz>", $m2->render());
 	}
 
+	public function testMultipleRenderCallsWithImplicitContexts() {
+		$data = array(
+			array('variable' => 'foo'),
+			array('variable' => 'bar'),
+			array('variable' => 'baz'),
+		);
+
+		$m = new Mustache('{{variable}}', $data);
+		$this->assertEquals($m->render(), $m->render());
+	}
 }

@@ -179,7 +179,8 @@ class Mustache {
 	public function _renderIterable($template, $contexts) {
 		$ret = array();
 		foreach ($contexts as $context) {
-			$ret[] = $this->render($template, $context);
+			$m = new Mustache($template, $context);
+			$ret[] = $m->render();
 		}
 		return implode("\n", $ret);
 	}
