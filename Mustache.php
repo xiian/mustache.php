@@ -52,7 +52,7 @@ class Mustache {
 	 *
 	 * Which would render as `qux`.
 	 */
-	const PRAGMA_DOT_NOTATION      = 'DOT-NOTATION';
+	const PRAGMA_DOT_NOTATION = 'DOT-NOTATION';
 
 	/**
 	 * The {{%IMPLICIT-ITERATOR}} pragma allows access to non-associative array data in an
@@ -83,7 +83,7 @@ class Mustache {
 	 *
 	 * This may be useful in non-HTML Mustache situations.
 	 */
-	const PRAGMA_UNESCAPED    = 'UNESCAPED';
+	const PRAGMA_UNESCAPED = 'UNESCAPED';
 
 	protected $_tagRegEx;
 
