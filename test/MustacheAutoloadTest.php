@@ -44,9 +44,8 @@ class MustacheAutoloadTest extends MustacheTest {
 	 * @return void
 	 */
 	public function testExamples($class, $template, $output) {
-		if ($class == 'Delimiters') {
-			$this->markTestSkipped("Known issue: sections don't respect delimiter changes");
-			return;
+		if (isset($this->knownIssues[$class])) {
+			return $this->markTestSkipped($this->knownIssues[$class]);
 		}
 
 		$m = new $class;
