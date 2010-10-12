@@ -1,6 +1,8 @@
 <?php
 
 class AutoloadPartials extends Mustache {
+	public $_templateExtension = 'ms';
+	
 	public $title = 'Allies';
 	public $list_items = array(
 		array('name' => 'Donkey Kong'),

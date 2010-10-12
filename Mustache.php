@@ -239,6 +239,17 @@ class Mustache {
 	}
 
 	/**
+	 * Override the default templateExtension.
+	 *
+	 * @access public
+	 * @param string $extension
+	 * @return void
+	 */
+	public function _setTemplateExtension($extension) {
+		$this->$_templateExtension = $extension;
+	}
+
+	/**
 	 * Load a template file. This file will be relative to $this->_templateBase.
 	 * A '.mustache' file extension is assumed if none is provided in $file.
 	 *
