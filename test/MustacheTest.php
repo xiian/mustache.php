@@ -35,6 +35,11 @@ class MustacheTest extends PHPUnit_Framework_TestCase {
 
 	const TEST_CLASS = 'Mustache';
 
+	protected $knownIssues = array(
+		'Delimiters'     => "Known issue: sections don't respect delimiter changes",
+		'SectionsSpaces' => "Known issue: Mustache fails miserably at whitespace",
+	);
+
 	/**
 	 * Test Mustache constructor.
 	 *
@@ -127,8 +132,7 @@ class MustacheTest extends PHPUnit_Framework_TestCase {
 	/**
 	 * Test render() with data.
 	 *
-	 * @access public
-	 * @return void
+	 * @group interpolation
 	 */
 	public function testRenderWithData() {
 		$m = new Mustache('{{first_name}} {{last_name}}');
@@ -137,10 +141,26 @@ class MustacheTest extends PHPUnit_Framework_TestCase {
 	}
 
 	/**
-	 * Mustache should return the same thing when invoked multiple times.
+	 * @group partials
+	 */
+	public function testRenderWithPartials() {
+		$m = new Mustache('{{>stache}}', null, array('stache' => '{{first_name}} {{last_name}}'));
+		$this->assertEquals('Charlie Chaplin', $m->render(null, array('first_name' => 'Charlie', 'last_name' => 'Chaplin')));
+		$this->assertEquals('Zappa, Frank', $m->render('{{last_name}}, {{first_name}}', array('first_name' => 'Frank', 'last_name' => 'Zappa')));
+	}
+
+	/**
+	 * Mustache should allow newlines (and other whitespace) in comments and all other tags.
 	 *
-	 * @access public
-	 * @return void
+	 * @group comments
+	 */
+	public function testNewlinesInComments() {
+		$m = new Mustache("{{! comment \n \t still a comment... }}");
+		$this->assertEquals('', $m->render());
+	}
+
+	/**
+	 * Mustache should return the same thing when invoked multiple times.
 	 */
 	public function testMultipleInvocations() {
 		$m = new Mustache('x');
@@ -154,8 +174,7 @@ class MustacheTest extends PHPUnit_Framework_TestCase {
 	/**
 	 * Mustache should return the same thing when invoked multiple times.
 	 *
-	 * @access public
-	 * @return void
+	 * @group interpolation
 	 */
 	public function testMultipleInvocationsWithTags() {
 		$m = new Mustache('{{one}} {{two}}', array('one' => 'foo', 'two' => 'bar'));
@@ -166,34 +185,32 @@ class MustacheTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($first, $second);
 	}
 
-
 	/**
 	 * Mustache should not use templates passed to the render() method for subsequent invocations.
-	 * 
-	 * @access public
-	 * @return void
 	 */
 	public function testResetTemplateForMultipleInvocations() {
 		$m = new Mustache('Sirve.');
 		$this->assertEquals('No sirve.', $m->render('No sirve.'));
 		$this->assertEquals('Sirve.', $m->render());
-		
+
 		$m2 = new Mustache();
 		$this->assertEquals('No sirve.', $m2->render('No sirve.'));
 		$this->assertEquals('', $m2->render());
 	}
 
 	/**
-	 * testClone function.
+	 * Test the __clone() magic function.
 	 *
+	 * @group examples
 	 * @dataProvider getExamples
-	 * @access public
-	 * @return void
+	 *
+	 * @param string $class
+	 * @param string $template
+	 * @param string $output
 	 */
 	public function test__clone($class, $template, $output) {
-		if ($class == 'Delimiters') {
-			$this->markTestSkipped("Known issue: sections don't respect delimiter changes");
-			return;
+		if (isset($this->knownIssues[$class])) {
+			return $this->markTestSkipped($this->knownIssues[$class]);
 		}
 
 		$m = new $class;
@@ -214,17 +231,16 @@ class MustacheTest extends PHPUnit_Framework_TestCase {
 	/**
 	 * Test everything in the `examples` directory.
 	 *
+	 * @group examples
 	 * @dataProvider getExamples
-	 * @access public
-	 * @param mixed $class
-	 * @param mixed $template
-	 * @param mixed $output
-	 * @return void
+	 *
+	 * @param string $class
+	 * @param string $template
+	 * @param string $output
 	 */
 	public function testExamples($class, $template, $output) {
-		if ($class == 'Delimiters') {
-			$this->markTestSkipped("Known issue: sections don't respect delimiter changes");
-			return;
+		if (isset($this->knownIssues[$class])) {
+			return $this->markTestSkipped($this->knownIssues[$class]);
 		}
 
 		$m = new $class;
@@ -242,7 +258,6 @@ class MustacheTest extends PHPUnit_Framework_TestCase {
 	 * This whole mess will be refined later to be more intuitive and less prescriptive, but it'll
 	 * do for now. Especially since it means we can have unit tests :)
 	 *
-	 * @access public
 	 * @return array
 	 */
 	public function getExamples() {
@@ -293,6 +308,9 @@ class MustacheTest extends PHPUnit_Framework_TestCase {
 		return $ret;
 	}
 
+	/**
+	 * @group delimiters
+	 */
 	public function testCrazyDelimiters() {
 		$m = new Mustache(null, array('result' => 'success'));
 		$this->assertEquals('success', $m->render('{{=[[ ]]=}}[[ result ]]'));
@@ -303,10 +321,33 @@ class MustacheTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('success', $m->render('{{=// \\\\}}// result \\\\'));
 	}
 
+	/**
+	 * @group delimiters
+	 */
 	public function testResetDelimiters() {
 		$m = new Mustache(null, array('result' => 'success'));
 		$this->assertEquals('success', $m->render('{{=[[ ]]=}}[[ result ]]'));
 		$this->assertEquals('success', $m->render('{{=<< >>=}}<< result >>'));
 		$this->assertEquals('success', $m->render('{{=<% %>=}}<% result %>'));
+	}
+
+	/**
+	 * @group sections
+	 * @dataProvider poorlyNestedSections
+	 * @expectedException MustacheException
+	 */
+	public function testPoorlyNestedSections($template) {
+		$m = new Mustache($template);
+		$m->render();
+	}
+
+	public function poorlyNestedSections() {
+		return array(
+			array('{{#foo}}'),
+			array('{{#foo}}{{/bar}}'),
+			array('{{#foo}}{{#bar}}{{/foo}}'),
+			array('{{#foo}}{{#bar}}{{/foo}}{{/bar}}'),
+			array('{{#foo}}{{/bar}}{{/foo}}'),
+		);
 	}
 }

@@ -98,7 +98,7 @@ class Mustache {
 		self::PRAGMA_UNESCAPED
 	);
 
-	protected $_localPragmas;
+	protected $_localPragmas = array();
 
 	/**
 	 * templateBase directory.
@@ -177,7 +177,7 @@ class Mustache {
 	public function __clone() {
 		$this->_otag = '{{';
 		$this->_ctag = '}}';
-		$this->_localPragmas = null;
+		$this->_localPragmas = array();
 
 		if ($keys = array_keys($this->_context)) {
 			$last = array_pop($keys);
@@ -298,7 +298,7 @@ class Mustache {
 	 * @return string Rendered Mustache template.
 	 */
 	protected function _renderTemplate($template) {
-		$template = $this->_renderSection($template);
+		$template = $this->_renderSections($template);
 		return $this->_renderTags($template);
 	}
 
@@ -309,18 +309,9 @@ class Mustache {
 	 * @param string $template
 	 * @return string
 	 */
-	protected function _renderSection($template) {
-		$otag  = preg_quote($this->_otag, '/');
-		$ctag  = preg_quote($this->_ctag, '/');
-		$regex = '/' . $otag . '(\\^|\\#)\\s*(.+?)\\s*' . $ctag . '\\s*([\\s\\S]+?)' . $otag . '\\/\\s*\\2\\s*' . $ctag . '\\s*/m';
-
-		$matches = array();
-		while (preg_match($regex, $template, $matches, PREG_OFFSET_CAPTURE)) {
-			$section  = $matches[0][0];
-			$offset   = $matches[0][1];
-			$type     = $matches[1][0];
-			$tag_name = trim($matches[2][0]);
-			$content  = $matches[3][0];
+	protected function _renderSections($template) {
+		while ($section_data = $this->_findSection($template)) {
+			list($section, $offset, $type, $tag_name, $content) = $section_data;
 
 			$replace = '';
 			$val = $this->_getVariable($tag_name);
@@ -375,6 +366,71 @@ class Mustache {
 	}
 
 	/**
+	 * Extract a section from $template.
+	 *
+	 * This is a helper function to find sections needed by _renderSections.
+	 *
+	 * @access protected
+	 * @param string $template
+	 * @return array $section, $offset, $type, $tag_name and $content
+	 */
+	protected function _findSection($template) {
+		$otag  = preg_quote($this->_otag, '/');
+		$ctag  = preg_quote($this->_ctag, '/');
+		$regex = '/' . $otag . '([\\^\\#\\/])\\s*(.+?)\\s*' . $ctag . '\\s*/ms';
+
+		$section_start = null;
+		$section_type  = null;
+		$content_start = null;
+
+		$search_offset = 0;
+
+		$section_stack = array();
+		$matches = array();
+		while (preg_match($regex, $template, $matches, PREG_OFFSET_CAPTURE, $search_offset)) {
+
+			$match    = $matches[0][0];
+			$offset   = $matches[0][1];
+			$type     = $matches[1][0];
+			$tag_name = trim($matches[2][0]);
+
+			$search_offset = $offset + strlen($match);
+
+			switch ($type) {
+				case '^':
+				case '#':
+					if (empty($section_stack)) {
+						$section_start = $offset;
+						$section_type  = $type;
+						$content_start = $search_offset;
+					}
+					array_push($section_stack, $tag_name);
+					break;
+				case '/':
+					if (empty($section_stack) || ($tag_name !== array_pop($section_stack))) {
+						if ($this->_throwsException(MustacheException::UNEXPECTED_CLOSE_SECTION)) {
+							throw new MustacheException('Unexpected close section: ' . $tag_name, MustacheException::UNEXPECTED_CLOSE_SECTION);
+						}
+					}
+
+					if (empty($section_stack)) {
+						$section = substr($template, $section_start, $search_offset - $section_start);
+						$content = substr($template, $content_start, $offset - $content_start);
+
+						return array($section, $section_start, $section_type, $tag_name, $content);
+					}
+					break;
+			}
+		}
+
+		if (!empty($section_stack)) {
+			if ($this->_throwsException(MustacheException::UNCLOSED_SECTION)) {
+				throw new MustacheException('Unclosed section: ' . $section_stack[0], MustacheException::UNCLOSED_SECTION);
+			}
+		}
+	}
+
+	/**
 	 * Initialize pragmas and remove all pragma tags.
 	 *
 	 * @access protected
@@ -391,7 +447,7 @@ class Mustache {
 
 		$otag = preg_quote($this->_otag, '/');
 		$ctag = preg_quote($this->_ctag, '/');
-		$regex = '/' . $otag . '%\\s*([\\w_-]+)((?: [\\w]+=[\\w]+)*)\\s*' . $ctag . '\\n?/';
+		$regex = '/' . $otag . '%\\s*([\\w_-]+)((?: [\\w]+=[\\w]+)*)\\s*' . $ctag . '\\n?/s';
 		return preg_replace_callback($regex, array($this, '_renderPragma'), $template);
 	}
 
@@ -460,7 +516,6 @@ class Mustache {
 		return (is_array($this->_localPragmas[$pragma_name])) ? $this->_localPragmas[$pragma_name] : array();
 	}
 
-
 	/**
 	 * Check whether this Mustache instance throws a given exception.
 	 *
@@ -492,7 +547,7 @@ class Mustache {
 		$otag = preg_quote($this->_otag, '/');
 		$ctag = preg_quote($this->_ctag, '/');
 
-		$this->_tagRegEx = '/' . $otag . "([#\^\/=!>\\{&])?(.+?)\\1?" . $ctag . "+/";
+		$this->_tagRegEx = '/' . $otag . "([#\^\/=!<>\\{&])?(.+?)\\1?" . $ctag . "+/s";
 
 		$html = '';
 		$matches = array();
@@ -527,21 +582,6 @@ class Mustache {
 	 */
 	protected function _renderTag($modifier, $tag_name) {
 		switch ($modifier) {
-			case '#':
-			case '^':
-				if ($this->_throwsException(MustacheException::UNCLOSED_SECTION)) {
-					throw new MustacheException('Unclosed section: ' . $tag_name, MustacheException::UNCLOSED_SECTION);
-				} else {
-					return '';
-				}
-				break;
-			case '/':
-				if ($this->_throwsException(MustacheException::UNEXPECTED_CLOSE_SECTION)) {
-					throw new MustacheException('Unexpected close section: ' . $tag_name, MustacheException::UNEXPECTED_CLOSE_SECTION);
-				} else {
-					return '';
-				}
-				break;
 			case '=':
 				return $this->_changeDelimiter($tag_name);
 				break;
@@ -549,6 +589,7 @@ class Mustache {
 				return $this->_renderComment($tag_name);
 				break;
 			case '>':
+			case '<':
 				return $this->_renderPartial($tag_name);
 				break;
 			case '{':
@@ -559,14 +600,18 @@ class Mustache {
 					return $this->_renderUnescaped($tag_name);
 				}
 				break;
-			case '':
-			default:
-				if ($this->_hasPragma(self::PRAGMA_UNESCAPED)) {
-					return $this->_renderUnescaped($tag_name);
-				} else {
-					return $this->_renderEscaped($tag_name);
-				}
+			case '#':
+			case '^':
+			case '/':
+				// remove any leftovers from _renderSections
+				return '';
 				break;
+		}
+
+		if ($this->_hasPragma(self::PRAGMA_UNESCAPED)) {
+			return $this->_renderUnescaped($modifier . $tag_name);
+		} else {
+			return $this->_renderEscaped($modifier . $tag_name);
 		}
 	}
 
@@ -578,7 +623,7 @@ class Mustache {
 	 * @return string
 	 */
 	protected function _renderEscaped($tag_name) {
-		return htmlentities($this->_getVariable($tag_name), null, $this->_charset);
+		return htmlentities($this->_getVariable($tag_name), ENT_COMPAT, $this->_charset);
 	}
 
 	/**
@@ -630,7 +675,7 @@ class Mustache {
 
 		$otag  = preg_quote($this->_otag, '/');
 		$ctag  = preg_quote($this->_ctag, '/');
-		$this->_tagRegEx = '/' . $otag . "([#\^\/=!>\\{&])?(.+?)\\1?" . $ctag . "+/";
+		$this->_tagRegEx = '/' . $otag . "([#\^\/=!<>\\{&])?(.+?)\\1?" . $ctag . "+/s";
 		return '';
 	}
 
@@ -712,12 +757,12 @@ class Mustache {
 	protected function _findVariableInContext($tag_name, $context) {
 		foreach ($context as $view) {
 			if (is_object($view)) {
-				if (isset($view->$tag_name)) {
-					return $view->$tag_name;
-				} else if (method_exists($view, $tag_name)) {
+				if (method_exists($view, $tag_name)) {
 					return $view->$tag_name();
+				} else if (isset($view->$tag_name)) {
+					return $view->$tag_name;
 				}
-			} else if (isset($view[$tag_name])) {
+			} else if (array_key_exists($tag_name, $view)) {
 				return $view[$tag_name];
 			}
 		}

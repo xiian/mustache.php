@@ -2,6 +2,9 @@
 
 require_once '../Mustache.php';
 
+/**
+ * @group sections
+ */
 class MustacheObjectSectionTest extends PHPUnit_Framework_TestCase {
 	public function testBasicObject() {
 		$alpha = new Alpha();
@@ -16,6 +19,12 @@ class MustacheObjectSectionTest extends PHPUnit_Framework_TestCase {
 	public function testSectionObjectWithGet() {
 		$gamma = new Gamma();
 		$this->assertEquals('Foo', $gamma->render('{{#bar}}{{#foo}}{{name}}{{/foo}}{{/bar}}'));
+	}
+
+	public function testSectionObjectWithFunction() {
+		$alpha = new Alpha();
+		$alpha->foo = new Delta();
+		$this->assertEquals('Foo', $alpha->render('{{#foo}}{{name}}{{/foo}}'));
 	}
 }
 
@@ -52,5 +61,13 @@ class Gamma extends Mustache {
 
 	public function __construct() {
 		$this->bar = new Beta();
+	}
+}
+
+class Delta extends Mustache {
+	protected $_name = 'Foo';
+
+	public function name() {
+		return $this->_name;
 	}
 }
