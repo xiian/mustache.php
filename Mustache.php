@@ -130,6 +130,8 @@ class Mustache {
 	 *         'pragmas' => array(
 	 *             Mustache::PRAGMA_UNESCAPED
 	 *         ),
+	 *
+	 *         'template_extension' => 'ms',
 	 *     );
 	 *
 	 * @access public
@@ -184,6 +186,10 @@ class Mustache {
 			}
 			$this->_pragmas = $options['pragmas'];
 		}
+
+		if (isset($options['template_extension'])) {
+			$this->_templateExtension = $options['template_extension'];
+		}
 	}
 
 	/**
@@ -236,17 +242,6 @@ class Mustache {
 	 */
 	public function _setTemplateName($name) {
 		$this->_templateName = $name;
-	}
-
-	/**
-	 * Override the default templateExtension.
-	 *
-	 * @access public
-	 * @param string $extension
-	 * @return void
-	 */
-	public function _setTemplateExtension($extension) {
-		$this->$_templateExtension = $extension;
 	}
 
 	/**
