@@ -498,6 +498,9 @@ class Mustache {
 			return $template;
 		}
 
+		$otag_orig = $this->_otag;
+		$ctag_orig = $this->_ctag;
+
 		$first = true;
 		$this->_tagRegEx = $this->_prepareTagRegEx($this->_otag, $this->_ctag, true);
 
@@ -536,6 +539,9 @@ class Mustache {
 				$this->_tagRegEx = $this->_prepareTagRegEx($this->_otag, $this->_ctag);
 			}
 		}
+
+		$this->_otag = $otag_orig;
+		$this->_ctag = $ctag_orig;
 
 		return $html . $template;
 	}
