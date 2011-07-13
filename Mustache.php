@@ -658,6 +658,27 @@ class Mustache {
 	 * @return string
 	 */
 	protected function _renderUnescaped($tag_name, $leading, $trailing) {
+		// If we're passing a variable, do it here
+		if (strpos($tag_name, ' ')) {
+			// Get function name and the arguments
+			list($func, $arg) = explode(' ', $tag_name, 2);
+
+			// If we didn't pass a string literal, get the variable
+			if (substr($arg, 0, 1) != '"') {
+				$arg = $this->_getVariable($arg);
+			}
+
+			// Strip quotes, if need be
+			$arg = trim($arg, ' "');
+
+			// If we have the method on this object, call it
+			if (method_exists($this, $func)) {
+				$val = $this->$func($arg);
+				return $leading . $val . $trailing;
+			}
+		}
+
+
 		$val = $this->_getVariable($tag_name);
 
 		if ($this->_varIsCallable($val)) {
