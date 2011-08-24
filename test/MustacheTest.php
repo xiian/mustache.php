@@ -449,6 +449,49 @@ class MustacheTest extends PHPUnit_Framework_TestCase {
 		$m = new Mustache($template, $view);
 		$this->assertEquals('{{win}}', $m->render());
 	}
+
+    public function quotedProvider() {
+        $r = array();
+        $r[] = array('fn', 'fn "a b" c d'      , 'fn(a b,$c$,$d$)');
+        $r[] = array('fn', 'fn "a b" c d "e f"', 'fn(a b,$c$,$d$,e f)');
+        $r[] = array('fn', 'fn a b c'          , 'fn($a$,$b$,$c$)');
+        $r[] = array('fn', 'fn "a b c"'        , 'fn(a b c)');
+        $r[] = array('fn', 'fn "a"'            , 'fn(a)');
+        return $r;
+    }
+
+    /**
+     * @dataProvider quotedProvider
+     */
+    public function testRenderUnescaped($funcName, $in, $expect) {
+        $method = new ReflectionMethod('Mustache', '_renderUnescaped');
+        $method->setAccessible(true);
+
+        // Mock out Mustache
+        $object = $this->getMockBuilder('Mustache')
+                ->setMethods(array($funcName, '_getVariable'))
+                ->getMock();
+
+        // Pretend everything just returns
+        $object->expects($this->any())
+                ->method('_getVariable')
+                ->withAnyParameters()
+                ->will($this->returnCallback(function($in){
+                    return '$' . $in . '$';
+                }));
+
+        // Set up the helper
+        $object->expects($this->any())
+                ->method($funcName)
+                ->withAnyParameters()
+                ->will($this->returnCallback(function() use($funcName){
+                    return $funcName . '(' . implode(',', func_get_args()) . ')';
+                }));
+
+        // Call the method
+        $out = $method->invokeArgs($object, array($in, '', ''));
+        $this->assertEquals($expect, $out);
+    }
 }
 
 class MustacheExposedOptionsStub extends Mustache {

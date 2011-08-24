@@ -663,17 +663,28 @@ class Mustache {
 			// Get function name and the arguments
 			list($func, $arg) = explode(' ', $tag_name, 2);
 
-			// If we didn't pass a string literal, get the variable
-			if (substr($arg, 0, 1) != '"') {
-				$arg = $this->_getVariable($arg);
-			}
+            // Split up the rest of the arguments
+            $patt = "~[^\\s\"']+|\"[^\"]*\"|'[^']*'~";
+            preg_match_all($patt, $arg, $args);
+            $args = $args[0];
 
-			// Strip quotes, if need be
+            $c = count($args);
+            // Loop through and check for variables
+            for($i = 0; $i < $c; $i++) {
+                // If we didn't pass a string literal, get the variable
+                if (substr($args[$i], 0, 1) != '"') {
+                    $args[$i] = $this->_getVariable($args[$i]);
+                } else {
+                    $args[$i] = trim($args[$i], '"');
+                }
+            }
+
+            // Strip quotes, if need be
 			$arg = trim($arg, ' "');
 
 			// If we have the method on this object, call it
 			if (method_exists($this, $func)) {
-				$val = $this->$func($arg);
+                $val = call_user_func_array(array($this, $func), $args);
 				return $leading . $val . $trailing;
 			}
 		}
