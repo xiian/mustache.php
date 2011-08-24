@@ -242,7 +242,7 @@ class Mustache {
 					// higher order sections
 					if ($this->_varIsCallable($val)) {
 						$content = call_user_func($val, $content);
-						$replace .= $this->_renderTemplate($content);
+						$rendered_content.= $this->_renderTemplate($content);
 					} else if ($this->_varIsIterable($val)) {
 						foreach ($val as $local_context) {
 							$this->_pushContext($local_context);
